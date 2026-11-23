@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>AI Adoption Dashboard</title>
+    <style>
+      :root {
+        --bg: #f2f3ef;
+        --surface: #ffffff;
+        --surface-2: #e9ede7;
+        --ink: #182420;
+        --muted: #5b6a61;
+        --line: #d9dfd8;
+        --accent: #0e6b4f;
+        --accent-soft: #e2f0e9;
+        --accent-ink: #0a4f3a;
+        --amber: #9a6a12;
+        --amber-soft: #f7ecd2;
+        --danger: #b3352c;
+        --danger-soft: #f9e3e1;
+        --ring-track: #dde4dd;
+        --shadow: 0 1px 2px rgba(24, 36, 32, .06), 0 8px 24px rgba(24, 36, 32, .06);
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1512;
+          --surface: #182019;
+          --surface-2: #212b23;
+          --ink: #e9eee9;
+          --muted: #9db0a2;
+          --line: #2b372d;
+          --accent: #3ec98d;
+          --accent-soft: #173327;
+          --accent-ink: #8fe6bd;
+          --amber: #e3b34e;
+          --amber-soft: #38300f;
+          --danger: #f0837a;
+          --danger-soft: #3d1d1a;
+          --ring-track: #2b372d;
+          --shadow: 0 1px 2px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.3);
+          color-scheme: dark;
+        }
+      }
+      * { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+      button, [role="button"], select, summary, input:not([type="checkbox"], [type="radio"]) { min-height: 2.25rem; }
+      button { font: inherit; cursor: pointer; }
+      .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+      .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 64px; }
+
+      /* ---------- Top controls ---------- */
+      .topbar {
+        display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+        justify-content: space-between; margin-bottom: 16px;
+      }
+      .topbar h1 {
+        font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+        font-size: clamp(26px, 4vw, 36px); font-weight: 700; line-height: 1.1;
+        margin: 0 0 4px;
+      }
+      .topbar .sub { color: var(--muted); margin: 0; max-width: 52ch; font-size: 15px; }
+      .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+      .btn {
+        border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+        border-radius: 10px; padding: 8px 14px; font-weight: 600; font-size: 14px;
+        display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+      }
+      .btn:hover { border-color: var(--accent); }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      @media (prefers-color-scheme: dark) { .btn.primary { color: #0b1510; } }
+      .btn[aria-pressed="true"] { background: var(--amber-soft); border-color: var(--amber); color: var(--ink); }
+      .btn svg { width: 16px; height: 16px; flex: none; }
+
+      .demo-banner {
+        display: none; align-items: flex-start; gap: 10px;
+        background: var(--amber-soft); border: 1px solid var(--amber);
+        border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: 14.5px;
+      }
+      .demo-banner.show { display: flex; }
+      .demo-banner strong { white-space: nowrap; }
+
+      .saved-note { color: var(--muted); font-size: 13px; margin: 0 0 14px; display: flex; align-items: center; gap: 7px; }
+      .saved-note .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+
+      /* ---------- Summary strip ---------- */
+      .summary {
+        display: grid; grid-template-columns: 1.2fr 1.4fr 1.2fr; gap: 14px; margin-bottom: 22px;
+      }
+      .stat {
+        background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+        box-shadow: var(--shadow); padding: 18px;
+      }
+      .stat h2 { font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; font-weight: 700; }
+      .ring-row { display: flex; align-items: center; gap: 16px; }
+      .ring-wrap { position: relative; width: 92px; height: 92px; flex: none; }
+      .ring-wrap svg { transform: rotate(-90deg); display: block; }
+      .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      .ring-center .pct { font-family: ui-monospace, monospace; font-weight: 600; font-size: 20px; line-height: 1; }
+      .ring-center .of { font-size: 11px; color: var(--muted); margin-top: 3px; }
+      .ring-meta p { margin: 0 0 4px; }
+      .ring-meta .big { font-weight: 700; font-size: 17px; }
+      .ring-meta .small { color: var(--muted); font-size: 13.5px; }
+      .meter { height: 12px; border-radius: 6px; background: var(--surface-2); position: relative; margin: 12px 0 8px; }
+      .meter .fill { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: var(--accent); width: 0%; transition: width .35s ease; }
+      .meter.over .fill { background: var(--danger); }
+      .meter.warn .fill { background: var(--amber); }
+      .spend-figs { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+      .spend-figs .total { font-family: ui-monospace, monospace; font-size: 30px; font-weight: 600; line-height: 1; }
+      .spend-figs .vs { color: var(--muted); font-size: 14px; }
+      .stat .foot { color: var(--muted); font-size: 13.5px; margin: 6px 0 0; }
+      .stat .foot strong { color: var(--ink); }
+      .next-step { font-weight: 600; font-size: 16.5px; margin: 0 0 4px; }
+      .next-week { color: var(--accent-ink); background: var(--accent-soft); display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 700; margin-bottom: 8px; }
+
+      /* ---------- Main grid ---------- */
+      .grid { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1.1fr); gap: 22px; align-items: start; }
+      .col-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 4px 0 12px; }
+      .col-head h2 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 22px; margin: 0; }
+      .col-head .hint { color: var(--muted); font-size: 13.5px; }
+
+      /* Weeks */
+      .week {
+        background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+        box-shadow: var(--shadow); margin-bottom: 14px; overflow: hidden;
+      }
+      .week-head { display: flex; align-items: center; gap: 12px; padding: 15px 18px 11px; }
+      .week-num {
+        font-family: ui-monospace, monospace; font-weight: 600; font-size: 13px;
+        border: 1.5px solid var(--accent); color: var(--accent-ink); border-radius: 8px;
+        padding: 5px 8px; white-space: nowrap;
+      }
+      .week.done .week-num { background: var(--accent); color: #fff; }
+      @media (prefers-color-scheme: dark) { .week.done .week-num { color: #0b1510; } }
+      .week-head h3 { margin: 0; font-size: 18px; }
+      .week-head .tagline { color: var(--muted); font-size: 13.5px; margin: 1px 0 0; }
+      .week-count { margin-left: auto; font-family: ui-monospace, monospace; font-size: 13px; color: var(--muted); white-space: nowrap; }
+      .week-bar { height: 5px; background: var(--surface-2); margin: 0 18px; border-radius: 3px; overflow: hidden; }
+      .week-bar i { display: block; height: 100%; background: var(--accent); width: 0%; transition: width .3s ease; }
+      .steps { list-style: none; margin: 6px 0 8px; padding: 0; }
+      .step label {
+        display: flex; gap: 12px; align-items: flex-start; padding: 11px 18px;
+        cursor: pointer; min-height: 48px;
+      }
+      .step label:hover { background: var(--surface-2); }
+      .step input[type="checkbox"] {
+        width: 22px; height: 22px; margin: 1px 0 0; flex: none; accent-color: var(--accent); cursor: pointer;
+      }
+      .step .t { font-weight: 600; font-size: 15.5px; display: block; }
+      .step .d { color: var(--muted); font-size: 13.5px; display: block; margin-top: 1px; }
+      .step.is-done .t { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+
+      /* Spend panel */
+      .panel {
+        background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+        box-shadow: var(--shadow); padding: 18px; margin-bottom: 14px;
+      }
+      .panel h3 { margin: 0 0 4px; font-size: 17px; }
+      .panel .lede { color: var(--muted); font-size: 13.5px; margin: 0 0 14px; }
+      .tool { border-top: 1px solid var(--line); padding: 14px 0 4px; }
+      .tool:first-of-type { border-top: 0; padding-top: 4px; }
+      .tool-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .tool-name { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 9px; }
+      .tool-dot { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+      .tool-spend { font-family: ui-monospace, monospace; font-weight: 600; font-size: 16px; }
+      .tool-bar { height: 8px; background: var(--surface-2); border-radius: 4px; margin: 9px 0 12px; overflow: hidden; }
+      .tool-bar i { display: block; height: 100%; width: 0%; transition: width .3s ease; }
+      .tool-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+      .field label { display: block; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+      .field input, .field select {
+        width: 100%; font: inherit; font-size: 14.5px; color: var(--ink);
+        background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px;
+      }
+      .money { position: relative; }
+      .money span { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
+      .money input { padding-left: 20px; }
+      .budget-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 6px; }
+      .budget-row .field { max-width: 170px; }
+      .budget-msg { font-size: 14px; text-align: right; }
+      .budget-msg strong { font-family: ui-monospace, monospace; }
+      .chart-box { margin-top: 6px; }
+      .chart-box svg { width: 100%; height: auto; display: block; }
+      .awareness {
+        background: var(--accent-soft); border-radius: 10px; padding: 12px 14px; font-size: 14px; margin-top: 14px;
+      }
+      .awareness strong { color: var(--accent-ink); }
+
+      .org-fields { display: grid; gap: 10px; }
+      .reset-row { margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .link-btn { background: none; border: 0; color: var(--muted); text-decoration: underline; font-size: 13.5px; padding: 8px 4px; min-height: 40px; }
+      .link-btn.armed { color: var(--danger); font-weight: 700; text-decoration: none; border: 1px solid var(--danger); border-radius: 8px; padding: 8px 12px; }
+
+      /* ---------- Assurance sheet ---------- */
+      .sheet-section { margin-top: 30px; }
+      .sheet {
+        background: #fff; color: #1c2420; border: 1px solid #cfd6cf; border-radius: 6px;
+        box-shadow: var(--shadow); padding: 34px 36px; max-width: 860px; margin: 0 auto;
+        font-size: 14.5px;
+      }
+      .sheet h2 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 25px; margin: 0 0 2px; color: #14201a; }
+      .sheet .sheet-sub { color: #55645c; margin: 0 0 18px; font-size: 13.5px; }
+      .sheet-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; border-top: 2px solid #14201a; border-bottom: 1px solid #d5dcd5; padding: 12px 0; margin-bottom: 18px; }
+      .sheet-meta .k { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: #6a7a70; font-weight: 700; }
+      .sheet-meta .v { font-weight: 600; margin-top: 2px; word-break: break-word; }
+      .sheet h3 { font-size: 13px; letter-spacing: .07em; text-transform: uppercase; color: #0e6b4f; margin: 20px 0 8px; }
+      .sheet table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .sheet th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #6a7a70; border-bottom: 1.5px solid #14201a; padding: 5px 8px 5px 0; }
+      .sheet td { border-bottom: 1px solid #e2e8e2; padding: 7px 8px 7px 0; vertical-align: top; }
+      .sheet td.r, .sheet th.r { text-align: right; padding-right: 0; }
+      .pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+      .pill.done { background: #e2f0e9; color: #0a4f3a; }
+      .pill.pend { background: #f7ecd2; color: #7c5510; }
+      .pill.block { background: #f9e3e1; color: #8c2a23; }
+      .sheet .signoff { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin-top: 26px; }
+      .sig-line { border-bottom: 1.5px solid #14201a; height: 34px; }
+      .sig-cap { font-size: 12px; color: #6a7a70; margin-top: 5px; }
+      .sheet .foot-note { color: #55645c; font-size: 12.5px; border-top: 1px solid #d5dcd5; margin-top: 22px; padding-top: 10px; }
+      .sheet-actions { display: flex; gap: 8px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+
+      footer.page-foot { color: var(--muted); font-size: 13px; text-align: center; margin-top: 34px; }
+
+      @media (max-width: 900px) {
+        .summary { grid-template-columns: 1fr; }
+        .grid { grid-template-columns: 1fr; }
+        .sheet { padding: 24px 18px; }
+        .sheet-meta { grid-template-columns: 1fr 1fr; }
+        .tool-fields { grid-template-columns: 1fr 1fr; }
+        .tool-fields .field.wide { grid-column: 1 / -1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .meter .fill, .tool-bar i, .week-bar i { transition: none; }
+      }
+
+      /* ---------- Print: only the assurance sheet ---------- */
+      @media print {
+        body { background: #fff; }
+        .no-print { display: none !important; }
+        .wrap { padding: 0; max-width: none; }
+        .sheet-section { margin: 0; }
+        .sheet { border: 0; box-shadow: none; border-radius: 0; padding: 8mm 4mm; max-width: none; }
+        @page { margin: 12mm; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+
+      <!-- ================= Dashboard ================= -->
+      <div class="no-print">
+        <div class="topbar">
+          <div>
+            <h1>AI Adoption Walkthrough</h1>
+            <p class="sub">Four weeks from “AI is happening somewhere” to a registry, an owner for every tool, and a one-page summary you can hand to a client or auditor.</p>
+          </div>
+          <div class="controls">
+            <button class="btn" id="demoBtn" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3" fill="currentColor" stroke="none"/></svg>
+              Demo mode
+            </button>
+            <button class="btn primary" id="exportBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+              Assurance export
+            </button>
+          </div>
+        </div>
+
+        <div class="demo-banner" id="demoBanner" role="status">
+          <strong>Demo mode</strong>
+          <span>You're looking at a fictional company — Harbor Lane Studio — with the walkthrough nearly done. Poke around freely: nothing here touches your real progress or spend. Turn demo mode off to go back to your own dashboard.</span>
+        </div>
+
+        <p class="saved-note"><span class="dot" aria-hidden="true"></span><span id="savedNote">Everything is saved in this browser only — no account, no server, nothing leaves this machine.</span></p>
+
+        <!-- Summary strip -->
+        <section class="summary" aria-label="Summary">
+          <div class="stat">
+            <h2>Walkthrough progress</h2>
+            <div class="ring-row">
+              <div class="ring-wrap" aria-hidden="true">
+                <svg width="92" height="92" viewBox="0 0 92 92">
+                  <circle cx="46" cy="46" r="40" fill="none" stroke="var(--ring-track)" stroke-width="9"/>
+                  <circle id="ringFg" cx="46" cy="46" r="40" fill="none" stroke="var(--accent)" stroke-width="9" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"/>
+                </svg>
+                <div class="ring-center"><span class="pct" id="ringPct">0%</span><span class="of">complete</span></div>
+              </div>
+              <div class="ring-meta">
+                <p class="big"><span id="doneCount">0</span> of 16 steps done</p>
+                <p class="small" id="weekFocus">Currently on Week 1 · See it</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat">
+            <h2>Spend this month</h2>
+            <div class="spend-figs">
+              <span class="total" id="spendTotal">$0</span>
+              <span class="vs">of <span id="spendBudgetLabel">$0</span> budget</span>
+            </div>
+            <div class="meter" id="spendMeter" role="img" aria-label="Spend versus budget"><div class="fill" id="spendFill"></div></div>
+            <p class="foot" id="spendFoot">Set a monthly budget in the spend panel to track against it.</p>
+          </div>
+
+          <div class="stat">
+            <h2>Next step</h2>
+            <span class="next-week" id="nextWeek">Week 1 · See it</span>
+            <p class="next-step" id="nextStep">Inventory every AI tool in use</p>
+            <p class="foot" id="nextDesc">Chat, code, writing, agents — including free tiers and trials.</p>
+          </div>
+        </section>
+
+        <div class="grid">
+          <!-- Weeks column -->
+          <section aria-label="Walkthrough steps">
+            <div class="col-head">
+              <h2>The four weeks</h2>
+              <span class="hint">Check steps off as you finish them</span>
+            </div>
+            <div id="weeks"></div>
+          </section>
+
+          <!-- Spend column -->
+          <section aria-label="Spend and details">
+            <div class="col-head">
+              <h2>Spend this month</h2>
+              <span class="hint">By tool</span>
+            </div>
+
+            <div class="panel">
+              <h3>Where the money is going</h3>
+              <p class="lede">Type in what each tool actually cost this month. Amounts, owners, and statuses feed the assurance export below.</p>
+              <div id="tools"></div>
+
+              <div class="chart-box" aria-label="Spend by tool chart">
+                <svg id="chart" viewBox="0 0 340 190" role="img" aria-label="Bar chart of spend by tool with a dashed monthly budget line"></svg>
+              </div>
+
+              <div class="budget-row">
+                <div class="field">
+                  <label for="budgetInput">Monthly budget (total)</label>
+                  <div class="money"><span>$</span><input id="budgetInput" type="number" min="0" step="10" inputmode="decimal" /></div>
+                </div>
+                <p class="budget-msg" id="budgetMsg"></p>
+              </div>
+
+              <div class="awareness">
+                <strong>Cost awareness, not a scorecard.</strong>
+                Spend here exists so the company can see what AI costs and plan for it — never to rank people or teams. A tool that costs more and saves more is a good trade, and this page won't pretend otherwise.
+              </div>
+            </div>
+
+            <div class="panel">
+              <h3>For the assurance export</h3>
+              <p class="lede">These details appear on the one-page summary.</p>
+              <div class="org-fields">
+                <div class="field">
+                  <label for="companyInput">Company name</label>
+                  <input id="companyInput" type="text" placeholder="e.g. Harbor Lane Studio" autocomplete="organization" />
+                </div>
+                <div class="field">
+                  <label for="preparedInput">Prepared by</label>
+                  <input id="preparedInput" type="text" placeholder="Name and role" autocomplete="name" />
+                </div>
+                <div class="field">
+                  <label for="reviewInput">Next review date</label>
+                  <input id="reviewInput" type="date" />
+                </div>
+              </div>
+              <div class="reset-row">
+                <span class="hint" style="color:var(--muted);font-size:13px;">Stored only in this browser.</span>
+                <button class="link-btn" id="resetBtn" type="button">Reset my data</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ================= Assurance export ================= -->
+      <section class="sheet-section" id="sheetSection" aria-label="One-page assurance export">
+        <div class="col-head no-print">
+          <h2 style="font-family:Georgia,serif;font-size:22px;margin:0;">One-page assurance export</h2>
+          <span class="hint" style="color:var(--muted);font-size:13.5px;">Updates live from the dashboard above — this is the page that prints</span>
+        </div>
+
+        <article class="sheet" id="sheet">
+          <h2>AI Adoption — Assurance Summary</h2>
+          <p class="sheet-sub">A one-page record of how this company uses AI: what's in use, who owns it, what it costs, and how it's controlled. Prepared for client, auditor, and vendor reviews.</p>
+
+          <div class="sheet-meta">
+            <div><div class="k">Company</div><div class="v" id="sCompany">—</div></div>
+            <div><div class="k">Prepared by</div><div class="v" id="sPrepared">—</div></div>
+            <div><div class="k">Date</div><div class="v" id="sDate">—</div></div>
+            <div><div class="k">Next review</div><div class="v" id="sReview">—</div></div>
+          </div>
+
+          <h3>Walkthrough progress</h3>
+          <table>
+            <thead><tr><th>Phase</th><th>Focus</th><th class="r">Steps complete</th><th class="r">Status</th></tr></thead>
+            <tbody id="sWeeks"></tbody>
+          </table>
+
+          <h3>Tools in use</h3>
+          <table>
+            <thead><tr><th>Tool</th><th>Owner</th><th>Status</th><th class="r">Spend this month</th></tr></thead>
+            <tbody id="sTools"></tbody>
+          </table>
+
+          <h3>Controls in place</h3>
+          <table>
+            <tbody id="sControls"></tbody>
+          </table>
+
+          <h3>Spend summary</h3>
+          <p style="margin:0;" id="sSpend"></p>
+
+          <div class="signoff">
+            <div><div class="sig-line"></div><div class="sig-cap">Prepared by — signature &amp; date</div></div>
+            <div><div class="sig-line"></div><div class="sig-cap">Reviewed by — signature &amp; date</div></div>
+          </div>
+
+          <p class="foot-note">Spend is reported for cost awareness and planning only; it is not a performance measure for any person or team. This summary is generated locally from the AI Adoption Walkthrough dashboard — no data was sent anywhere to produce it.</p>
+        </article>
+
+        <div class="sheet-actions no-print">
+          <span style="color:var(--muted);font-size:13.5px;">To save this as a PDF: open your browser's Print command (<span class="mono">Ctrl/Cmd + P</span>) — the page is set up so only this sheet prints — then choose “Save as PDF.”</span>
+        </div>
+      </section>
+
+      <footer class="page-foot no-print">AI Adoption Walkthrough · See it → Identify it → Own it → Prove it · Your entries never leave this browser.</footer>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var WEEKS = [
+          { n: 1, name: "See it", tagline: "Make the invisible visible", steps: [
+            { id: "s1", t: "Inventory every AI tool in use", d: "Chat, code, writing, agents — including free tiers and trials." },
+            { id: "s2", t: "Map where company data goes", d: "Which tools receive customer, financial, or code data." },
+            { id: "s3", t: "Pull a spend & usage baseline", d: "Last 30 days across every vendor, even if it's rough." },
+            { id: "s4", t: "Surface shadow AI", d: "Personal accounts and browser extensions people actually use." }
+          ]},
+          { n: 2, name: "Identify it", tagline: "Sort risk before it sorts you", steps: [
+            { id: "s5", t: "Classify data by sensitivity", d: "Public, internal, confidential, regulated — in plain language." },
+            { id: "s6", t: "Flag high-risk use cases", d: "Anything touching customers, money, health, or hiring." },
+            { id: "s7", t: "Sort tools: approved / review / blocked", d: "Every tool gets a verdict, not a shrug." },
+            { id: "s8", t: "Set spend thresholds & alerts", d: "Pick the dollar amount that should trigger a second look." }
+          ]},
+          { n: 3, name: "Own it", tagline: "A name on every tool", steps: [
+            { id: "s9", t: "Assign an owner to every tool", d: "A named person, not a team alias." },
+            { id: "s10", t: "Complete the Agent Registry", d: "Purpose, data access, owner, and off-switch for each agent." },
+            { id: "s11", t: "Set access, retention & the off-switch", d: "Who can use it, how long data is kept, how to turn it off." },
+            { id: "s12", t: "Write the one-page AI use policy", d: "What people can paste, where, and what never goes in." }
+          ]},
+          { n: 4, name: "Prove it", tagline: "Show your work", steps: [
+            { id: "s13", t: "Run the kill-switch drill", d: "Pick an agent, turn it off, time it. Target: under 5 minutes." },
+            { id: "s14", t: "Review spend against budget", d: "Owners explain variance — awareness, not a scorecard." },
+            { id: "s15", t: "Generate the assurance summary", d: "The one-pager below, ready for a client or auditor." },
+            { id: "s16", t: "Set the monthly review cadence", d: "Same week each month: progress, spend, new tools." }
+          ]}
+        ];
+
+        var TOOLS = [
+          { id: "claude", name: "Claude", color: "#c96f2e" },
+          { id: "chatgpt", name: "ChatGPT", color: "#3a7d5d" },
+          { id: "cursor", name: "Cursor", color: "#4a6fa5" }
+        ];
+
+        var CONTROLS = [
+          { step: "s10", label: "Agent Registry complete", detail: "Every agent has a purpose, data access, owner, and off-switch on record." },
+          { step: "s12", label: "AI use policy written", detail: "One page: what can be pasted into AI tools, where, and what never goes in." },
+          { step: "s11", label: "Access, retention & off-switch set", detail: "Per-tool access rules, data retention, and a tested way to turn each tool off." },
+          { step: "s13", label: "Kill-switch drill run", detail: "An agent was shut down on purpose, timed, in under 5 minutes." },
+          { step: "s16", label: "Monthly review scheduled", detail: "Progress, spend, and new tools reviewed on a fixed cadence." }
+        ];
+
+        function blankState() {
+          return {
+            company: "", preparedBy: "", reviewDate: "", budget: 1000,
+            steps: {},
+            tools: {
+              claude: { spend: 0, owner: "", status: "In review" },
+              chatgpt: { spend: 0, owner: "", status: "In review" },
+              cursor: { spend: 0, owner: "", status: "In review" }
+            }
+          };
+        }
+
+        function demoState() {
+          var s = blankState();
+          s.company = "Harbor Lane Studio";
+          s.preparedBy = "Jordan Lee, Operations Lead";
+          s.budget = 1500;
+          ["s1","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11"].forEach(function (id) { s.steps[id] = true; });
+          var next = new Date(); next.setDate(next.getDate() + 21);
+          s.reviewDate = next.toISOString().slice(0, 10);
+          s.tools.claude = { spend: 386, owner: "Jordan Lee", status: "Approved" };
+          s.tools.chatgpt = { spend: 512, owner: "Priya Nair", status: "Approved" };
+          s.tools.cursor = { spend: 274, owner: "Marcus Webb", status: "In review" };
+          return s;
+        }
+
+        var KEY = "ai-adoption-dashboard-v1";
+        var real = blankState();
+        try {
+          var raw = localStorage.getItem(KEY);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            real = Object.assign(blankState(), parsed);
+            real.tools = Object.assign(blankState().tools, parsed.tools || {});
+            real.steps = parsed.steps || {};
+          }
+        } catch (e) { /* storage unavailable — run in-memory */ }
+
+        var demo = null;         // demo dataset while demo mode is on
+        var current = real;      // dataset the UI is showing
+        var resetArmed = false;
+
+        function save() {
+          if (demo) return; // demo edits never touch the real saved data
+          try { localStorage.setItem(KEY, JSON.stringify(real)); } catch (e) {}
+          var el = document.getElementById("savedNote");
+          el.textContent = "Saved in this browser just now — nothing leaves this machine.";
+        }
+
+        function money(n) {
+          n = Math.round((+n || 0) * 100) / 100;
+          return "$" + n.toLocaleString("en-US", { maximumFractionDigits: n % 1 ? 2 : 0 });
+        }
+        function fmtDate(iso) {
+          if (!iso) return "—";
+          var d = new Date(iso + "T12:00:00");
+          if (isNaN(d)) return iso;
+          return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        }
+        function esc(s) {
+          return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+          });
+        }
+
+        /* ---------- Build weeks ---------- */
+        var weeksEl = document.getElementById("weeks");
+        WEEKS.forEach(function (w) {
+          var sec = document.createElement("section");
+          sec.className = "week"; sec.id = "week-" + w.n;
+          var lis = w.steps.map(function (st) {
+            return '<li class="step" data-step="' + st.id + '"><label>' +
+              '<input type="checkbox" data-step-input="' + st.id + '" />' +
+              '<span><span class="t">' + esc(st.t) + '</span><span class="d">' + esc(st.d) + "</span></span>" +
+              "</label></li>";
+          }).join("");
+          sec.innerHTML =
+            '<div class="week-head"><span class="week-num">WK ' + w.n + "</span>" +
+            "<div><h3>" + esc(w.name) + '</h3><p class="tagline">' + esc(w.tagline) + "</p></div>" +
+            '<span class="week-count" data-week-count="' + w.n + '">0 / 4</span></div>' +
+            '<div class="week-bar"><i data-week-bar="' + w.n + '"></i></div>' +
+            '<ul class="steps">' + lis + "</ul>";
+          weeksEl.appendChild(sec);
+        });
+        weeksEl.addEventListener("change", function (e) {
+          var id = e.target.getAttribute("data-step-input");
+          if (!id) return;
+          current.steps[id] = e.target.checked;
+          save(); update();
+        });
+
+        /* ---------- Build tools ---------- */
+        var toolsEl = document.getElementById("tools");
+        TOOLS.forEach(function (tool) {
+          var div = document.createElement("div");
+          div.className = "tool";
+          div.innerHTML =
+            '<div class="tool-top"><span class="tool-name"><span class="tool-dot" style="background:' + tool.color + '"></span>' + tool.name + "</span>" +
+            '<span class="tool-spend" data-tool-total="' + tool.id + '">$0</span></div>' +
+            '<div class="tool-bar"><i data-tool-bar="' + tool.id + '" style="background:' + tool.color + '"></i></div>' +
+            '<div class="tool-fields">' +
+              '<div class="field wide"><label for="owner-' + tool.id + '">Owner</label><input id="owner-' + tool.id + '" data-tool-field="' + tool.id + ':owner" type="text" placeholder="Named person" /></div>' +
+              '<div class="field"><label for="status-' + tool.id + '">Status</label><select id="status-' + tool.id + '" data-tool-field="' + tool.id + ':status"><option>Approved</option><option>In review</option><option>Not approved</option></select></div>' +
+              '<div class="field"><label for="spend-' + tool.id + '">Spend / mo</label><div class="money"><span>$</span><input id="spend-' + tool.id + '" data-tool-field="' + tool.id + ':spend" type="number" min="0" step="1" inputmode="decimal" /></div></div>' +
+            "</div>";
+          toolsEl.appendChild(div);
+        });
+        toolsEl.addEventListener("input", function (e) {
+          var f = e.target.getAttribute("data-tool-field");
+          if (!f) return;
+          var parts = f.split(":");
+          var val = e.target.value;
+          current.tools[parts[0]][parts[1]] = parts[1] === "spend" ? (parseFloat(val) || 0) : val;
+          save(); update(false);
+        });
+        toolsEl.addEventListener("change", function (e) {
+          var f = e.target.getAttribute("data-tool-field");
+          if (!f) return;
+          var parts = f.split(":");
+          current.tools[parts[0]][parts[1]] = e.target.value;
+          save(); update(false);
+        });
+
+        /* ---------- Org fields & budget ---------- */
+        function bindText(id, key) {
+          document.getElementById(id).addEventListener("input", function (e) {
+            current[key] = e.target.value; save(); updateSheet();
+          });
+        }
+        bindText("companyInput", "company");
+        bindText("preparedInput", "preparedBy");
+        document.getElementById("reviewInput").addEventListener("change", function (e) {
+          current.reviewDate = e.target.value; save(); updateSheet();
+        });
+        document.getElementById("budgetInput").addEventListener("input", function (e) {
+          current.budget = parseFloat(e.target.value) || 0; save(); update(false);
+        });
+
+        /* ---------- Update ---------- */
+        function totalSpend() {
+          return TOOLS.reduce(function (sum, t) { return sum + (+current.tools[t.id].spend || 0); }, 0);
+        }
+        function doneCount() {
+          var c = 0;
+          WEEKS.forEach(function (w) { w.steps.forEach(function (s) { if (current.steps[s.id]) c++; }); });
+          return c;
+        }
+
+        function update(syncInputs) {
+          if (syncInputs !== false) syncForm();
+
+          /* Steps */
+          var done = 0, nextFound = null, currentWeek = null;
+          WEEKS.forEach(function (w) {
+            var wd = 0;
+            w.steps.forEach(function (s) {
+              var on = !!current.steps[s.id];
+              if (on) { wd++; done++; }
+              var li = document.querySelector('[data-step="' + s.id + '"]');
+              if (li) li.classList.toggle("is-done", on);
+              var cb = document.querySelector('[data-step-input="' + s.id + '"]');
+              if (cb) cb.checked = on;
+              if (!on && !nextFound) nextFound = { week: w, step: s };
+            });
+            document.querySelector('[data-week-count="' + w.n + '"]').textContent = wd + " / 4";
+            document.querySelector('[data-week-bar="' + w.n + '"]').style.width = (wd / 4 * 100) + "%";
+            document.getElementById("week-" + w.n).classList.toggle("done", wd === 4);
+            if (wd < 4 && !currentWeek) currentWeek = w;
+          });
+
+          var pct = Math.round(done / 16 * 100);
+          document.getElementById("ringPct").textContent = pct + "%";
+          document.getElementById("ringFg").style.strokeDashoffset = (251.3 * (1 - done / 16)).toFixed(1);
+          document.getElementById("doneCount").textContent = done;
+          document.getElementById("weekFocus").textContent = done === 16
+            ? "All four weeks complete — keep the monthly review going."
+            : "Currently on Week " + currentWeek.n + " · " + currentWeek.name;
+
+          if (nextFound) {
+            document.getElementById("nextWeek").textContent = "Week " + nextFound.week.n + " · " + nextFound.week.name;
+            document.getElementById("nextStep").textContent = nextFound.step.t;
+            document.getElementById("nextDesc").textContent = nextFound.step.d;
+          } else {
+            document.getElementById("nextWeek").textContent = "Walkthrough complete";
+            document.getElementById("nextStep").textContent = "Run the monthly review";
+            document.getElementById("nextDesc").textContent = "Progress, spend, and any new tools — same week each month.";
+          }
+
+          /* Spend */
+          var total = totalSpend(), budget = +current.budget || 0;
+          document.getElementById("spendTotal").textContent = money(total);
+          document.getElementById("spendBudgetLabel").textContent = money(budget);
+          var ratio = budget > 0 ? total / budget : 0;
+          var fill = document.getElementById("spendFill");
+          fill.style.width = Math.min(ratio * 100, 100) + "%";
+          var meter = document.getElementById("spendMeter");
+          meter.classList.toggle("over", budget > 0 && ratio > 1);
+          meter.classList.toggle("warn", budget > 0 && ratio > 0.85 && ratio <= 1);
+          var foot = document.getElementById("spendFoot");
+          var msg = document.getElementById("budgetMsg");
+          if (budget <= 0) {
+            foot.innerHTML = "Set a monthly budget in the spend panel to track against it.";
+            msg.textContent = "";
+          } else if (total > budget) {
+            foot.innerHTML = "<strong>" + money(total - budget) + " over budget</strong> this month — worth a look with the tool owners, not a verdict on anyone.";
+            msg.innerHTML = "<strong>" + money(total - budget) + "</strong> over";
+          } else {
+            foot.innerHTML = "<strong>" + money(budget - total) + " left</strong> of this month's budget (" + Math.round(ratio * 100) + "% used).";
+            msg.innerHTML = "<strong>" + money(budget - total) + "</strong> remaining";
+          }
+
+          var maxTool = Math.max.apply(null, TOOLS.map(function (t) { return +current.tools[t.id].spend || 0; }).concat([1]));
+          TOOLS.forEach(function (t) {
+            var sp = +current.tools[t.id].spend || 0;
+            document.querySelector('[data-tool-total="' + t.id + '"]').textContent = money(sp);
+            document.querySelector('[data-tool-bar="' + t.id + '"]').style.width = (sp / maxTool * 100) + "%";
+          });
+
+          drawChart(total, budget);
+          updateSheet();
+        }
+
+        function drawChart(total, budget) {
+          var svg = document.getElementById("chart");
+          var W = 340, H = 190, base = 158, top = 18, plotH = base - top;
+          var scaleMax = Math.max(budget, total, 1) * 1.12;
+          var colW = 52, gap = (W - 40 - colW * 3) / 2, x0 = 20;
+          var parts = [];
+          /* budget line */
+          if (budget > 0) {
+            var by = base - (budget / scaleMax) * plotH;
+            parts.push('<line x1="8" y1="' + by + '" x2="' + (W - 4) + '" y2="' + by + '" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="5 4"/>');
+            parts.push('<text x="' + (W - 6) + '" y="' + (by - 6) + '" text-anchor="end" font-size="11" font-weight="700" fill="var(--amber)">Budget ' + money(budget) + "</text>");
+          }
+          TOOLS.forEach(function (t, i) {
+            var sp = +current.tools[t.id].spend || 0;
+            var h = (sp / scaleMax) * plotH;
+            var x = x0 + i * (colW + gap), y = base - h;
+            parts.push('<rect x="' + x + '" y="' + y + '" width="' + colW + '" height="' + Math.max(h, sp > 0 ? 3 : 0) + '" rx="5" fill="' + t.color + '"/>');
+            parts.push('<text x="' + (x + colW / 2) + '" y="' + (y - 7) + '" text-anchor="middle" font-size="12.5" font-weight="600" font-family="ui-monospace, monospace" fill="var(--ink)">' + money(sp) + "</text>");
+            parts.push('<text x="' + (x + colW / 2) + '" y="' + (base + 18) + '" text-anchor="middle" font-size="12.5" fill="var(--muted)">' + t.name + "</text>");
+          });
+          parts.push('<line x1="8" y1="' + base + '" x2="' + (W - 4) + '" y2="' + base + '" stroke="var(--line)" stroke-width="1.5"/>');
+          svg.innerHTML = parts.join("");
+        }
+
+        function syncForm() {
+          document.getElementById("companyInput").value = current.company || "";
+          document.getElementById("preparedInput").value = current.preparedBy || "";
+          document.getElementById("reviewInput").value = current.reviewDate || "";
+          document.getElementById("budgetInput").value = current.budget ? current.budget : "";
+          TOOLS.forEach(function (t) {
+            var d = current.tools[t.id];
+            document.querySelector('[data-tool-field="' + t.id + ':owner"]').value = d.owner || "";
+            document.querySelector('[data-tool-field="' + t.id + ':status"]').value = d.status || "In review";
+            document.querySelector('[data-tool-field="' + t.id + ':spend"]').value = d.spend ? d.spend : "";
+          });
+        }
+
+        /* ---------- Assurance sheet ---------- */
+        function statusPill(status) {
+          if (status === "Approved") return '<span class="pill done">Approved</span>';
+          if (status === "Not approved") return '<span class="pill block">Not approved</span>';
+          return '<span class="pill pend">In review</span>';
+        }
+        function updateSheet() {
+          document.getElementById("sCompany").textContent = current.company || "—";
+          document.getElementById("sPrepared").textContent = current.preparedBy || "—";
+          document.getElementById("sDate").textContent = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+          document.getElementById("sReview").textContent = fmtDate(current.reviewDate);
+
+          document.getElementById("sWeeks").innerHTML = WEEKS.map(function (w) {
+            var wd = w.steps.filter(function (s) { return current.steps[s.id]; }).length;
+            var st = wd === 4 ? '<span class="pill done">Complete</span>' : wd === 0 ? '<span class="pill pend">Not started</span>' : '<span class="pill pend">In progress</span>';
+            return "<tr><td><strong>Week " + w.n + " · " + esc(w.name) + "</strong></td><td>" + esc(w.tagline) + '</td><td class="r mono">' + wd + ' / 4</td><td class="r">' + st + "</td></tr>";
+          }).join("");
+
+          document.getElementById("sTools").innerHTML = TOOLS.map(function (t) {
+            var d = current.tools[t.id];
+            return "<tr><td><strong>" + t.name + "</strong></td><td>" + esc(d.owner || "— unassigned") + "</td><td>" + statusPill(d.status) + '</td><td class="r mono">' + money(d.spend) + "</td></tr>";
+          }).join("");
+
+          document.getElementById("sControls").innerHTML = CONTROLS.map(function (c) {
+            var on = !!current.steps[c.step];
+            return "<tr><td><strong>" + esc(c.label) + "</strong><br><span style='color:#55645c;font-size:13px;'>" + esc(c.detail) + "</span></td>" +
+              '<td class="r">' + (on ? '<span class="pill done">In place</span>' : '<span class="pill pend">Pending</span>') + "</td></tr>";
+          }).join("");
+
+          var total = totalSpend(), budget = +current.budget || 0;
+          var txt = "Total AI spend this month is <strong>" + money(total) + "</strong>";
+          if (budget > 0) {
+            txt += " against a monthly budget of <strong>" + money(budget) + "</strong> (" + Math.round(total / budget * 100) + "% used";
+            txt += total > budget ? ", " + money(total - budget) + " over)." : ", " + money(budget - total) + " remaining).";
+          } else { txt += ". No monthly budget has been set yet."; }
+          txt += " Figures are reported for cost awareness and planning.";
+          document.getElementById("sSpend").innerHTML = txt;
+        }
+
+        /* ---------- Demo mode ---------- */
+        var demoBtn = document.getElementById("demoBtn");
+        demoBtn.addEventListener("click", function () {
+          if (demo) {
+            demo = null; current = real;
+            demoBtn.setAttribute("aria-pressed", "false");
+            demoBtn.lastChild.textContent = " Demo mode";
+            document.getElementById("demoBanner").classList.remove("show");
+            document.getElementById("savedNote").textContent = "Back to your dashboard — saved in this browser only, nothing leaves this machine.";
+          } else {
+            demo = demoState(); current = demo;
+            demoBtn.setAttribute("aria-pressed", "true");
+            demoBtn.lastChild.textContent = " Exit demo";
+            document.getElementById("demoBanner").classList.add("show");
+            document.getElementById("savedNote").textContent = "Demo mode — changes here are throwaway and never overwrite your saved data.";
+          }
+          resetArmed = false;
+          var rb = document.getElementById("resetBtn");
+          rb.textContent = "Reset my data"; rb.classList.remove("armed");
+          update();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+
+        /* ---------- Reset ---------- */
+        document.getElementById("resetBtn").addEventListener("click", function () {
+          var rb = this;
+          if (demo) { // resetting in demo just restores the demo dataset
+            demo = demoState(); current = demo; update(); return;
+          }
+          if (!resetArmed) {
+            resetArmed = true;
+            rb.textContent = "Tap again to erase everything";
+            rb.classList.add("armed");
+            setTimeout(function () { resetArmed = false; rb.textContent = "Reset my data"; rb.classList.remove("armed"); }, 4000);
+            return;
+          }
+          real = blankState(); current = real;
+          try { localStorage.removeItem(KEY); } catch (e) {}
+          resetArmed = false; rb.textContent = "Reset my data"; rb.classList.remove("armed");
+          update();
+        });
+
+        /* ---------- Export ---------- */
+        document.getElementById("exportBtn").addEventListener("click", function () {
+          document.getElementById("sheetSection").scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+
+        update();
+      })();
+    </script>
+  </body>
+</html>

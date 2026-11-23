@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Adoption ROI Calculator</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; padding: 0 16px 48px; line-height: 1.5; max-width: 960px; margin-left: auto; margin-right: auto; }
+  h1 { font-size: 1.6rem; margin: 24px 0 4px; }
+  h2 { font-size: 1.15rem; margin-top: 32px; border-bottom: 1px solid #8884; padding-bottom: 4px; }
+  h3 { font-size: 1rem; margin-bottom: 4px; }
+  .sub { color: #666; margin-top: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 16px 0; }
+  label { display: block; font-weight: 600; font-size: .9rem; }
+  label span { display: block; font-weight: 400; font-size: .8rem; color: #666; }
+  input { width: 100%; padding: 8px; font-size: 1rem; margin-top: 4px; }
+  button { padding: 10px 16px; font-size: 1rem; cursor: pointer; margin: 4px 8px 4px 0; }
+  button.primary { font-weight: 700; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
+  .card { border: 1px solid #8886; border-radius: 8px; padding: 12px 16px; }
+  .card .big { font-size: 1.7rem; font-weight: 700; }
+  .card .lbl { font-size: .85rem; color: #666; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: .92rem; }
+  th, td { border: 1px solid #8885; padding: 6px 8px; text-align: left; }
+  th { font-size: .85rem; }
+  td.num, th.num { text-align: right; }
+  .note { background: #8882; border-left: 4px solid #888; padding: 10px 14px; margin: 16px 0; font-size: .92rem; }
+  .warn { border-left-color: #b7791f; }
+  .ok { border-left-color: #2f855a; }
+  .bar-wrap { background: #8883; border-radius: 4px; height: 18px; margin: 4px 0 12px; overflow: hidden; }
+  .bar { height: 100%; background: #2f855a; }
+  .bar.over { background: #b7791f; }
+  .muted { color: #666; font-size: .88rem; }
+  .week { margin-bottom: 12px; }
+  .week ol { margin: 4px 0; }
+  code { font-size: .9em; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<h1>AI Adoption ROI Calculator</h1>
+<p class="sub">A small, local-first estimator for teams deciding whether governed AI adoption
+pays for itself. No server, no account, no data leaves this page. It pairs with the
+<a href="#plan">4-week adoption plan</a> below: the numbers say whether it is worth doing,
+the plan says how to do it safely.</p>
+
+<div class="note warn"><strong>What this is — and is not.</strong> This is a planning
+estimate built on three stated assumptions (see <a href="#model">the model</a>). It is not a
+promise of savings, not a compliance guarantee, and not a quote. Real results depend on which
+requests are actually AI-eligible in your team and how well the rollout is governed. If you
+handle regulated data, get a proper security review before Week 3.</div>
+
+<h2>Your inputs</h2>
+<div class="grid">
+  <div>
+    <label for="teamSize">Team size (people)
+      <span>People whose requests the AI tools would assist.</span></label>
+    <input id="teamSize" type="number" min="1" step="1" value="25">
+  </div>
+  <div>
+    <label for="volume">Monthly ticket / request volume
+      <span>Tickets, requests, or tasks per month.</span></label>
+    <input id="volume" type="number" min="0" step="1" value="1200">
+  </div>
+  <div>
+    <label for="hourlyCost">Avg loaded hourly cost ($/hr)
+      <span>Salary + benefits + overhead, per hour. Not take-home pay.</span></label>
+    <input id="hourlyCost" type="number" min="0" step="1" value="85">
+  </div>
+  <div>
+    <label for="spend">Current AI tool spend ($/mo)
+      <span>All AI tools combined, per month. 0 if none yet.</span></label>
+    <input id="spend" type="number" min="0" step="1" value="500">
+  </div>
+</div>
+<p>
+  <button class="primary" id="calcBtn" type="button">Calculate ROI</button>
+  <button id="exampleBtn" type="button">Load anonymized Netflix-scale worked example</button>
+  <button id="resetBtn" type="button">Reset</button>
+</p>
+<p class="muted" id="exampleNote" hidden>The worked example below is an <strong>anonymized example</strong>:
+inputs are illustrative values chosen so the model reproduces the verified field anchor of
+~600 hours saved per month. It is not Netflix's real data, and the dollar figure it computes
+is the model's output for one team — not the verified program outcome (see the field anchors).</p>
+
+<h2>Results</h2>
+<div class="cards" id="results" aria-live="polite">
+  <div class="card"><div class="lbl">Hours saved / month</div><div class="big" id="rHours">—</div><div class="lbl" id="rHoursSub"></div></div>
+  <div class="card"><div class="lbl">Gross value / month</div><div class="big" id="rGross">—</div><div class="lbl">hours saved × loaded hourly cost</div></div>
+  <div class="card"><div class="lbl">Net value / month</div><div class="big" id="rNet">—</div><div class="lbl">gross value − AI tool spend</div></div>
+  <div class="card"><div class="lbl">$ recovered / year (net)</div><div class="big" id="rYear">—</div><div class="lbl" id="rRoiSub"></div></div>
+</div>
+
+<h3>Scenarios — what if the eligible share is higher or lower?</h3>
+<p class="muted">The model assumes 40% of requests are AI-eligible. These scenarios move only that
+one assumption (30% / 40% / 50%); everything else stays the same.</p>
+<table>
+  <thead><tr><th>Scenario</th><th class="num">Eligible share</th><th class="num">Hours saved / mo</th><th class="num">Net $ / yr</th></tr></thead>
+  <tbody>
+    <tr><td>Conservative</td><td class="num">30%</td><td class="num" id="sConH">—</td><td class="num" id="sConY">—</td></tr>
+    <tr><td><strong>Expected</strong></td><td class="num"><strong>40%</strong></td><td class="num" id="sExpH">—</td><td class="num" id="sExpY">—</td></tr>
+    <tr><td>Optimistic</td><td class="num">50%</td><td class="num" id="sOptH">—</td><td class="num" id="sOptY">—</td></tr>
+  </tbody>
+</table>
+
+<h2 id="model">The model (every assumption, on the page)</h2>
+<ol>
+  <li><strong>AI-eligible share: 40%</strong> of monthly requests can be AI-assisted. Not every
+    ticket qualifies; judgment calls, sensitive cases, and novel work stay human.</li>
+  <li><strong>Time saved per assisted request: 18 minutes (0.30 hr)</strong> — drafting, triage,
+    summarising, first-pass answers. The rest of the handling time stays human.</li>
+  <li><strong>Hours saved / mo = volume × 0.40 × 0.30.</strong></li>
+  <li><strong>Gross value / mo = hours saved × loaded hourly cost.</strong></li>
+  <li><strong>Net value / mo = gross value − current AI spend. $ recovered / yr = net × 12.</strong></li>
+  <li><strong>ROI multiple = gross value ÷ AI spend</strong> (shown only when spend &gt; 0).</li>
+  <li><strong>Recommended soft spend cap = 5% of gross monthly value.</strong> A nudge threshold,
+    never a hard cutoff and never a performance scorecard.</li>
+</ol>
+<p class="muted">Calibrated against the verified field anchors below: at 5,000 requests/mo the model
+produces exactly ~600 hours saved/mo, matching the observed program. The dollar outcome then
+depends only on the loaded hourly cost you enter.</p>
+
+<h2>Verified field anchors (anonymized program, not calculator output)</h2>
+<div class="note ok">These are real, verified outcomes from the large-scale AI-adoption program
+this calculator's assumptions were calibrated against. They are <strong>shown for context, not
+computed by the calculator</strong> — the calculator models one team; the program covered
+<strong>57 productions over ~8 weeks</strong>.
+<ul>
+  <li><strong>$2.5M/yr recovered</strong> (program-wide, across 57 productions)</li>
+  <li><strong>~600 hrs/mo saved</strong> — the anchor the worked example reproduces</li>
+  <li><strong>5–7x faster</strong> handling on AI-assisted work</li>
+  <li><strong>Escalations down ~25%</strong>; <strong>first-contact resolution improved ~65–70%</strong></li>
+  <li><strong>$0.40/session</strong> prototype cost</li>
+</ul>
+Do not quote these as what your team will get. Run your own numbers above; the anchors only show
+what disciplined, governed adoption achieved at scale.</div>
+
+<h2>Spend / budget view</h2>
+<p>Current AI spend: <strong id="spSpend">—</strong> / mo &nbsp;·&nbsp;
+Recommended soft cap (5% of gross value): <strong id="spCap">—</strong> / mo &nbsp;·&nbsp;
+Headroom: <strong id="spHead">—</strong></p>
+<div class="bar-wrap" aria-hidden="true"><div class="bar" id="spBar" style="width:0%"></div></div>
+<p class="muted" id="spMsg">Enter your inputs and calculate to see the spend view.</p>
+
+<h3>Demo dataset — one month of fictional usage (clearly fictional)</h3>
+<p class="muted">A demo usage log for the worked example, so you can see what the spend view is for.
+Fictional tools, fictional users, fictional tokens. It sums to the worked example's $2,400/mo spend.
+Your real log would come from your own usage APIs — never paste real keys or real user data here.</p>
+<table>
+  <thead><tr><th>Tool</th><th>Model</th><th class="num">Requests</th><th class="num">Input tokens</th><th class="num">Output tokens</th><th class="num">Cost</th></tr></thead>
+  <tbody>
+    <tr><td>Claude</td><td>claude-sonnet-4-5</td><td class="num">960</td><td class="num">1,240,000</td><td class="num">380,000</td><td class="num">$1,150.00</td></tr>
+    <tr><td>ChatGPT</td><td>gpt-5</td><td class="num">610</td><td class="num">720,000</td><td class="num">210,000</td><td class="num">$620.00</td></tr>
+    <tr><td>Cursor</td><td>claude-sonnet-4-5</td><td class="num">430</td><td class="num">540,000</td><td class="num">190,000</td><td class="num">$630.00</td></tr>
+    <tr><td><strong>Total</strong></td><td></td><td class="num"><strong>2,000</strong></td><td class="num"><strong>2,500,000</strong></td><td class="num"><strong>780,000</strong></td><td class="num"><strong>$2,400.00</strong></td></tr>
+  </tbody>
+</table>
+<p class="muted">2,000 assisted requests = the 40% eligible share of the worked example's 5,000 requests.
+Cost per assisted request in this demo: $1.20. The verified prototype ran at $0.40/session —
+newer models and heavier use cost more; the point of the log is to see it, not to hit a number.</p>
+
+<h2 id="plan">The 4-week plan (16 steps)</h2>
+<p class="muted">The numbers say whether it is worth doing. This is how to do it without creating
+shadow AI, a spend surprise, or a data leak. One owner, one registry, one kill switch.</p>
+<div class="week"><h3>Week 1 — See it</h3><p class="muted">Outcome: a complete inventory. Most teams are shocked by this list.</p>
+<ol>
+  <li>Ask the team: “What AI tools did you use this week?” (15-minute survey)</li>
+  <li>List every tool, who uses it, and what data it touches</li>
+  <li>Mark off-limits data against each tool — flag any tool that has touched it</li>
+  <li>Name one owner for the inventory itself</li>
+</ol></div>
+<div class="week"><h3>Week 2 — Identify it</h3><p class="muted">Outcome: every agent acts as a named human, and every call is logged.</p>
+<ol>
+  <li>Short-lived scoped credentials tied to the human who invoked the agent — never a shared service account</li>
+  <li>One audit log: user, tool, model, tokens, cost on every call</li>
+  <li>Spend surfaced in-tool (status line / <code>/cost</code>), not just a weekly digest</li>
+  <li>Set up the sandbox: a non-production space with no real data</li>
+  <li>Pull historical spend from your providers' usage APIs with your own key, read-only</li>
+</ol></div>
+<div class="week"><h3>Week 3 — Own it</h3><p class="muted">Outcome: every agent has an owner, a scope, and a kill switch.</p>
+<ol>
+  <li>Fill in the Agent Registry below — one row per agent / automation</li>
+  <li>Every agent gets a named owner, a declared scope, and a review date</li>
+  <li>Kill switch: one action disables an agent's credentials org-wide</li>
+  <li>Allowlist of approved AI tools; anything else goes in the sandbox or gets flagged</li>
+</ol></div>
+<div class="week"><h3>Week 4 — Prove it</h3><p class="muted">Outcome: a one-page assurance summary you can show a client or auditor.</p>
+<ol>
+  <li>Write the summary: what we use, who owns it, what it costs, how we turn it off</li>
+  <li>Show it to whoever might ask you to prove it and ask: “Does this answer your question?”</li>
+  <li>Write down what to do next quarter — this is a living system, not a finish line</li>
+</ol></div>
+
+<h2>Kill-switch registry (concept)</h2>
+<p>Every agent gets one row. If anything goes wrong, the kill switch is one action — disable the
+credential — not a hunt through five systems. Example rows are fictional.</p>
+<table>
+  <thead><tr><th>Agent</th><th>Owner</th><th>Purpose</th><th>Scope</th><th>Review date</th><th>Kill switch</th></tr></thead>
+  <tbody>
+    <tr><td>support-drafter</td><td>Demo Owner</td><td>Draft first replies to support tickets</td><td>helpdesk:read, draft-only</td><td>2027-02-21</td><td>Disable credential in identity broker</td></tr>
+    <tr><td>triage-sorter</td><td>Demo Owner</td><td>Route incoming requests by topic</td><td>queue:read, label-only</td><td>2027-02-21</td><td>Disable credential in identity broker</td></tr>
+    <tr><td>weekly-digest</td><td>Demo Owner</td><td>Summarise resolved tickets weekly</td><td>helpdesk:read, internal-only</td><td>2027-02-21</td><td>Disable credential in identity broker</td></tr>
+  </tbody>
+</table>
+<p>
+  <button id="csvBtn" type="button">Download registry.csv (example rows)</button>
+  <button id="mdBtn" type="button">Download summary (.md)</button>
+</p>
+
+<h2>How to use this with the walkthrough</h2>
+<ol>
+  <li>Run this calculator first. If net value is clearly positive, the 4-week plan is worth doing.</li>
+  <li>Then run the <strong>AI Adoption Walkthrough</strong> (companion skill pack,
+    <code>Protogrumbles/ai-adoption-walkthrough</code>): its 10-question interview turns the plan
+    above into one tailored to your stack, with a real <code>registry.csv</code> and
+    <code>usage-log.json</code>.</li>
+  <li>Re-run the numbers monthly from your real usage log — not from this page's demo data.</li>
+</ol>
+
+<p class="muted">Built by Sean Steuer — Senior Program Manager, AI Strategy &amp; Operational
+Transformation, Netflix. Based on patterns from large-scale AI adoption; the implementation here
+is deliberately small and local. MIT licensed. No credentials are collected on this page.</p>
+
+<script>
+"use strict";
+// AI Adoption ROI Calculator — pure logic, no network calls.
+// Model (see "The model" section on the page):
+//   hoursSaved/mo = volume * ELIGIBLE_SHARE * MINUTES_SAVED_PER_REQUEST / 60
+//   grossValue/mo = hoursSaved * hourlyCost
+//   netValue/mo   = grossValue - spend
+//   recovered/yr  = netValue * 12
+//   softCap/mo    = 5% of grossValue
+var ELIGIBLE_SHARE = 0.40;        // 40% of requests are AI-eligible
+var MINUTES_SAVED = 18;           // minutes saved per AI-assisted request
+var SCENARIOS = { conservative: 0.30, expected: 0.40, optimistic: 0.50 };
+var SOFT_CAP_SHARE = 0.05;        // recommended soft spend cap: 5% of gross value
+
+function num(id) {
+  var v = parseFloat(document.getElementById(id).value);
+  return isFinite(v) && v >= 0 ? v : 0;
+}
+function fmt$(n) {
+  return "$" + Math.round(n).toLocaleString("en-US");
+}
+function fmtNum(n) {
+  return Math.round(n).toLocaleString("en-US");
+}
+
+function calculateROI(inputs) {
+  // inputs: { teamSize, volume, hourlyCost, spend } — all >= 0 numbers.
+  // Returns every derived figure; no DOM access, so it is unit-testable.
+  var hoursPerRequest = MINUTES_SAVED / 60; // 0.30 hr
+  function scenario(share) {
+    var hours = inputs.volume * share * hoursPerRequest;
+    var gross = hours * inputs.hourlyCost;
+    var net = gross - inputs.spend;
+    return { share: share, hours: hours, gross: gross, net: net, yearly: net * 12 };
+  }
+  var expected = scenario(SCENARIOS.expected);
+  var roi = inputs.spend > 0 ? expected.gross / inputs.spend : null;
+  return {
+    hours: expected.hours,
+    gross: expected.gross,
+    net: expected.net,
+    yearly: expected.yearly,
+    roi: roi,
+    hoursPerPerson: inputs.teamSize > 0 ? expected.hours / inputs.teamSize : null,
+    eligibleRequests: inputs.volume * SCENARIOS.expected,
+    costPerAssistedRequest: inputs.volume * SCENARIOS.expected > 0 ? inputs.spend / (inputs.volume * SCENARIOS.expected) : null,
+    softCap: expected.gross * SOFT_CAP_SHARE,
+    headroom: expected.gross * SOFT_CAP_SHARE - inputs.spend,
+    scenarios: {
+      conservative: scenario(SCENARIOS.conservative),
+      expected: expected,
+      optimistic: scenario(SCENARIOS.optimistic)
+    }
+  };
+}
+
+var EXAMPLE = { teamSize: 85, volume: 5000, hourlyCost: 145, spend: 2400 };
+// Anonymized Netflix-scale worked example. Inputs are illustrative values chosen
+// so the model reproduces the verified field anchor (~600 hrs/mo). The $ figure
+// the model computes for this one team is NOT the verified $2.5M/yr program
+// outcome (57 productions, ~8 weeks) — that is shown separately as a field anchor.
+
+function render(r, inputs) {
+  document.getElementById("rHours").textContent = fmtNum(r.hours) + " hrs";
+  document.getElementById("rHoursSub").textContent =
+    (r.hoursPerPerson === null ? "" : fmtNum(r.hoursPerPerson * 10) / 10 + " hrs/person/mo · ") +
+    fmtNum(r.eligibleRequests) + " assisted requests/mo";
+  document.getElementById("rGross").textContent = fmt$(r.gross) + "/mo";
+  document.getElementById("rNet").textContent = fmt$(r.net) + "/mo";
+  document.getElementById("rYear").textContent = fmt$(r.yearly) + "/yr";
+  document.getElementById("rRoiSub").textContent =
+    r.roi === null ? "No current AI spend — ROI multiple not applicable." :
+    "ROI " + (Math.round(r.roi * 10) / 10) + "x gross on AI spend" +
+    (r.net < 0 ? " — currently net-negative at these inputs." : " — net-positive at these inputs.");
+  document.getElementById("sConH").textContent = fmtNum(r.scenarios.conservative.hours);
+  document.getElementById("sConY").textContent = fmt$(r.scenarios.conservative.yearly);
+  document.getElementById("sExpH").textContent = fmtNum(r.scenarios.expected.hours);
+  document.getElementById("sExpY").textContent = fmt$(r.scenarios.expected.yearly);
+  document.getElementById("sOptH").textContent = fmtNum(r.scenarios.optimistic.hours);
+  document.getElementById("sOptY").textContent = fmt$(r.scenarios.optimistic.yearly);
+  document.getElementById("spSpend").textContent = fmt$(inputs.spend);
+  document.getElementById("spCap").textContent = fmt$(r.softCap);
+  document.getElementById("spHead").textContent =
+    (r.headroom >= 0 ? fmt$(r.headroom) + " under cap" : fmt$(-r.headroom) + " OVER cap");
+  var pct = r.softCap > 0 ? Math.min(100, inputs.spend / r.softCap * 100) : (inputs.spend > 0 ? 100 : 0);
+  var bar = document.getElementById("spBar");
+  bar.style.width = pct + "%";
+  bar.className = "bar" + (inputs.spend > r.softCap ? " over" : "");
+  document.getElementById("spMsg").textContent =
+    inputs.spend > r.softCap
+      ? "Spend is above the recommended soft cap. That is a nudge to review — check the registry for unused agents before adding more tools, not a cutoff."
+      : "Spend is inside the recommended soft cap. The cap is 5% of gross monthly value; revisit it monthly from your real usage log.";
+}
+
+function readInputs() {
+  return { teamSize: num("teamSize"), volume: num("volume"), hourlyCost: num("hourlyCost"), spend: num("spend") };
+}
+function calculateAndRender() {
+  var inputs = readInputs();
+  render(calculateROI(inputs), inputs);
+}
+function download(filename, text, type) {
+  var blob = new Blob([text], { type: type || "text/plain" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+}
+
+document.getElementById("calcBtn").addEventListener("click", calculateAndRender);
+["teamSize", "volume", "hourlyCost", "spend"].forEach(function (id) {
+  document.getElementById(id).addEventListener("input", calculateAndRender);
+});
+document.getElementById("exampleBtn").addEventListener("click", function () {
+  document.getElementById("teamSize").value = EXAMPLE.teamSize;
+  document.getElementById("volume").value = EXAMPLE.volume;
+  document.getElementById("hourlyCost").value = EXAMPLE.hourlyCost;
+  document.getElementById("spend").value = EXAMPLE.spend;
+  document.getElementById("exampleNote").hidden = false;
+  calculateAndRender();
+});
+document.getElementById("resetBtn").addEventListener("click", function () {
+  document.getElementById("teamSize").value = 25;
+  document.getElementById("volume").value = 1200;
+  document.getElementById("hourlyCost").value = 85;
+  document.getElementById("spend").value = 500;
+  document.getElementById("exampleNote").hidden = true;
+  calculateAndRender();
+});
+document.getElementById("csvBtn").addEventListener("click", function () {
+  download("registry.csv",
+    "agent_name,owner,purpose,scope_systems,expiry_review_date,status,kill_switch\n" +
+    "support-drafter,Demo Owner,Draft first replies to support tickets,helpdesk:read draft-only,2027-02-21,review,disable credential in identity broker\n" +
+    "triage-sorter,Demo Owner,Route incoming requests by topic,queue:read label-only,2027-02-21,review,disable credential in identity broker\n" +
+    "weekly-digest,Demo Owner,Summarise resolved tickets weekly,helpdesk:read internal-only,2027-02-21,review,disable credential in identity broker\n",
+    "text/csv");
+});
+document.getElementById("mdBtn").addEventListener("click", function () {
+  var inputs = readInputs();
+  var r = calculateROI(inputs);
+  download("roi-summary.md",
+    "# AI Adoption ROI — summary (generated locally, " + new Date().toISOString().slice(0, 10) + ")\n\n" +
+    "Inputs: team " + inputs.teamSize + ", volume " + inputs.volume + "/mo, loaded cost $" +
+    inputs.hourlyCost + "/hr, AI spend $" + inputs.spend + "/mo.\n\n" +
+    "- Hours saved: " + fmtNum(r.hours) + "/mo\n" +
+    "- Gross value: " + fmt$(r.gross) + "/mo\n" +
+    "- Net value: " + fmt$(r.net) + "/mo\n" +
+    "- $ recovered/yr (net): " + fmt$(r.yearly) + "\n" +
+    "- Scenarios (net $/yr): conservative " + fmt$(r.scenarios.conservative.yearly) +
+    ", expected " + fmt$(r.scenarios.expected.yearly) +
+    ", optimistic " + fmt$(r.scenarios.optimistic.yearly) + "\n\n" +
+    "Model: hours = volume x 0.40 eligible x 18 min saved per assisted request. " +
+    "Estimate only — not a promise of savings or a compliance guarantee.\n",
+    "text/markdown");
+});
+
+// Calculate once on load so the page is never blank.
+calculateAndRender();
+</script>
+</body>
+</html>

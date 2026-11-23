@@ -1,0 +1,4 @@
+agent_name,owner,purpose,scope_systems,expiry_review_date,status,kill_switch
+support-drafter,Demo Owner,Draft first replies to support tickets,helpdesk:read draft-only,2027-02-21,review,disable credential in identity broker
+triage-sorter,Demo Owner,Route incoming requests by topic,queue:read label-only,2027-02-21,review,disable credential in identity broker
+weekly-digest,Demo Owner,Summarise resolved tickets weekly,helpdesk:read internal-only,2027-02-21,review,disable credential in identity broker
